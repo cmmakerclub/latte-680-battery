@@ -19,8 +19,9 @@ void LatteModule::configLoop() {
 }
 
 void LatteModule::setup() {
-  // bme = new CMMC_BME680();
-
+  bme = new CMMC_BME680(); 
+  bme->setup();
+  bme->read();
   oled  = new SSD1306(0x3c, 4, 5);
   pixels  = new Adafruit_NeoPixel(NUMPIXELS, 15, NEO_GRB + NEO_KHZ800);
   pixels->begin();
@@ -31,10 +32,8 @@ void LatteModule::setup() {
   oled->setFont(ArialMT_Plain_10); 
   oled->println("starting...");
   oled->display();
-  // bme->every(5000);
-  // bme->setup(0, 0);
 }
 
 void LatteModule::loop() { 
-  // bme->read(); 
+  bme->read(); 
 }

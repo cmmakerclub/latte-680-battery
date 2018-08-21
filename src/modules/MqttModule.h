@@ -3,7 +3,10 @@
 #define CMMC_MQTT_MODULE_H
 
 #include <CMMC_Module.h> 
+#include <CMMC_BME680.hpp>
 #include <MqttConnector.h>
+
+extern CMMC_BME680 *bme;
 
 class MqttModule: public CMMC_Module {
   public:

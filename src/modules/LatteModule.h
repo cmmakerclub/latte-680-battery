@@ -2,9 +2,13 @@
 #include <Wire.h>
 #include <SSD1306.h>
 #include <Adafruit_NeoPixel.h>
+#include <CMMC_BME680.hpp>
 
-#ifndef CMMC_BME680_MODULE_H
-#define CMMC_BME680_MODULE_H 
+#ifndef CMMC_LATTE2_MODULE_H
+#define CMMC_LATTE2_MODULE_H 
+
+
+extern CMMC_BME680* bme;
 
 class LatteModule: public CMMC_Module {
   public:
@@ -14,9 +18,9 @@ class LatteModule: public CMMC_Module {
     void configLoop();
   protected:
   private:
-    // CMMC_BME680 *bme;
     Adafruit_NeoPixel *pixels;
     SSD1306 *oled;
+
 };
 
 #endif
