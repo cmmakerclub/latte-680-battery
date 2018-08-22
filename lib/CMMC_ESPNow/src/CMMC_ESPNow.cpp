@@ -33,12 +33,12 @@ void CMMC_ESPNow::init(int mode) {
     WiFi.mode(WIFI_STA);
   }
 
-  delay(20); 
+  delay(20);
 
   if (esp_now_init() == 0) {
-		USER_DEBUG_PRINTF("espnow init ok");
+    USER_DEBUG_PRINTF("espnow init ok");
   } else {
-		USER_DEBUG_PRINTF("espnow init failed");
+    USER_DEBUG_PRINTF("espnow init failed");
     ESP.restart();
     return;
   }
@@ -65,13 +65,13 @@ void CMMC_ESPNow::send(uint8_t *mac, u8* data, int len, void_cb_t cb, uint32_t w
   uint16_t retries = 0;
 
   esp_now_send(mac, data, len);
-  delay(RETRIES_DELAY*(retries+1));
+  delay(RETRIES_DELAY * (retries + 1));
 
   if (this->_enable_retries) {
-    while(this->_message_sent_status != 0) {
-      USER_DEBUG_PRINTF("try to send over espnow..."); 
+    while (this->_message_sent_status != 0) {
+      USER_DEBUG_PRINTF("try to send over espnow...");
       esp_now_send(mac, data, len);
-      delay(RETRIES_DELAY*(retries+1));
+      delay(RETRIES_DELAY * (retries + 1));
       Serial.printf("retrying %d/%d (at %lums)\r\n", retries, MAX_RETRIES, millis());
       if (++retries > MAX_RETRIES) {
         Serial.printf("reach max retries.\r\n");
@@ -87,12 +87,12 @@ void CMMC_ESPNow::send(uint8_t *mac, u8* data, int len, void_cb_t cb, uint32_t w
       yield();
     }
 
-    if (this->_waiting_message_has_arrived==false) {
+    if (this->_waiting_message_has_arrived == false) {
       USER_DEBUG_PRINTF("MESSAGE LOST!, Waiting a message Timeout...\r\n");
       cb();
     }
     else {
-      USER_DEBUG_PRINTF("GOT a message from controller\r\n"); 
+      USER_DEBUG_PRINTF("GOT a message from controller\r\n");
     }
   }
   else {
@@ -113,7 +113,7 @@ void CMMC_ESPNow::on_message_sent(esp_now_send_cb_t cb) {
 }
 
 void CMMC_ESPNow::debug(cmmc_debug_cb_t cb) {
-  if (cb!=NULL)
+  if (cb != NULL)
     this->_user_debug_cb = cb;
 }
 

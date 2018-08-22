@@ -55,10 +55,10 @@ uint32_t checksum(uint8_t* data, size_t len) {
 
 void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  pinMode(13, INPUT_PULLUP);
-
+  pinMode(13, INPUT_PULLUP); 
   uint8_t* slave_addr = getESPNowSlaveMacAddress();
   memcpy(self_mac, slave_addr, 6);
+  // dump(self_mac, 6);
   this->led = ((CMMC_Legend*) os)->getBlinker();;
   strcpy(this->path, "/api/espnow");
 
@@ -95,21 +95,26 @@ void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
 }
 
 void ESPNowModule::loop() {
-
-  sendingInterval.every_ms(1000, [&]() { 
-    bme->getTemperature();
+  sendingInterval.every_ms(5*1000, [&]() { 
+    memcpy(&packet.to, master_mac, 6); 
+    memcpy(&packet.from, self_mac, 6); 
+    packet.type = 1;
+    packet.battery = 2;
     packet.field1 = bme->getTemperature()*100;
     packet.field2 = bme->getHumidity()*100;
+    // Serial.printf("field1 = %lu \r\n", packet.field1);
+    // Serial.printf("field2 = %lu \r\n", packet.field2);
     packet.ms = millis();
     strcpy(packet.sensorName, _sensorName);
     packet.nameLen = strlen(packet.sensorName); 
+    packet.battery = analogRead(A0) * 5 / 991.232;
     packet.sum = checksum((uint8_t*) &packet, sizeof(packet) - sizeof(packet.sum)); 
     dump((u8*) &packet, sizeof(packet)); 
 
     espNow.send(master_mac, (u8*) &packet, sizeof(packet), [&]() {
       Serial.printf("espnow sending timeout. sleepTimeM = %lu\r\n", _defaultDeepSleep_m); 
       // _go_sleep(_defaultDeepSleep_m);
-    }, 1000); 
+    }, 2000); 
 
     Serial.println("SENDING...."); 
   });
@@ -165,7 +170,8 @@ void ESPNowModule::_init_espnow() {
   espNow.on_message_recv([](uint8_t * macaddr, uint8_t * data, uint8_t len) {
     led->toggle();
     Serial.printf("RECV: len = %u byte, sleepTime = %lu at(%lu ms)\r\n", len, data[0], millis());
-    module->_go_sleep(data[0]);
+    // TODO: GO FOR SLEEP
+    // module->_go_sleep(data[0]);
   });
 }
 
