@@ -22,9 +22,11 @@ void LatteModule::setup() {
   bme = new CMMC_BME680(); 
   bme->setup();
   bme->read();
+
   oled  = new SSD1306(0x3c, 4, 5);
-  pixels  = new Adafruit_NeoPixel(NUMPIXELS, 15, NEO_GRB + NEO_KHZ800);
+  pixels  = new Adafruit_NeoPixel(NUMPIXELS, 15, NEO_GRB + NEO_KHZ800); 
   pixels->begin();
+  
   oled->init();
   oled->flipScreenVertically();
   oled->setContrast(255);

@@ -16,13 +16,15 @@ class CMMC_BME680
 {
   private:
     uint32_t _gas_data[CMMC_BME680_MAX_DATA_ARRAY] = {0.0};
-    CMMC_Interval readSensorInterval;
     
     uint32_t startMeasurementAtMs;
     uint8_t measurementIdx = 0;
     uint32_t measurementCounter = 0;
+
     Bsec iaqSensor;
     String output;
+
+    CMMC_Interval readSensorInterval;
 
     float temperature;
     float hudmidity;

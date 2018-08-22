@@ -48,7 +48,7 @@ uint8_t* getESPNowSlaveMacAddress() {
 uint32_t checksum(uint8_t* data, size_t len) {
   uint32_t sum = 0;
   while (len--) {
-    sum ^= *(data++);
+    sum += *(data++);
   }
   return sum;
 }
@@ -56,6 +56,7 @@ uint32_t checksum(uint8_t* data, size_t len) {
 void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(13, INPUT_PULLUP);
+
   uint8_t* slave_addr = getESPNowSlaveMacAddress();
   memcpy(self_mac, slave_addr, 6);
   this->led = ((CMMC_Legend*) os)->getBlinker();;
@@ -67,7 +68,7 @@ void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
   this->_managerPtr = new CMMC_ConfigManager("/espnow.json");
   this->_managerPtr->init();
 
-  this->_managerPtr->load_config([](JsonObject * root, const char* content) {
+  this->_managerPtr->load_config([&](JsonObject * root, const char* content) {
     if (root == NULL) return;
     Serial.println("[user] json loaded..");
     if (root->containsKey("mac")) {
@@ -76,7 +77,10 @@ void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
       String deviceName;
       if (device != NULL) {
         deviceName  = String(device);
-        //  strcpy(userEspnowSensorName, deviceName.c_str());
+        if (strlen(device) > 15) {
+          Serial.println("device name is too long.");
+        }
+        strcpy(_sensorName, deviceName.c_str());
       }
       Serial.printf("Loaded mac %s, name=%s\r\n", macStr.c_str(), deviceName.c_str());
       uint8_t mac[6];
@@ -91,12 +95,30 @@ void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
 }
 
 void ESPNowModule::loop() {
+
+  sendingInterval.every_ms(1000, [&]() { 
+    bme->getTemperature();
+    packet.field1 = bme->getTemperature()*100;
+    packet.field2 = bme->getHumidity()*100;
+    packet.ms = millis();
+    strcpy(packet.sensorName, _sensorName);
+    packet.nameLen = strlen(packet.sensorName); 
+    packet.sum = checksum((uint8_t*) &packet, sizeof(packet) - sizeof(packet.sum)); 
+    dump((u8*) &packet, sizeof(packet)); 
+
+    espNow.send(master_mac, (u8*) &packet, sizeof(packet), [&]() {
+      Serial.printf("espnow sending timeout. sleepTimeM = %lu\r\n", _defaultDeepSleep_m); 
+      // _go_sleep(_defaultDeepSleep_m);
+    }, 1000); 
+
+    Serial.println("SENDING...."); 
+  });
   // u8 t = 1;
-  if (millis() % 100 == 0) {
-    //   espNow.send(master_mac, &t, 1, []() {
-    //     Serial.println("espnow sending timeout.");
-    //   }, 200);
-  }
+  // if (millis() % 100 == 0) {
+  //   espNow.send(master_mac, &t, 1, []() {
+  //     Serial.println("espnow sending timeout.");
+  //   }, 200);
+  // }
   // Serial.println("HELLO");
   // delay(10);
 }
@@ -141,7 +163,6 @@ void ESPNowModule::_init_espnow() {
   });
   module = this;
   espNow.on_message_recv([](uint8_t * macaddr, uint8_t * data, uint8_t len) {
-    // user_espnow_sent_at = millis();
     led->toggle();
     Serial.printf("RECV: len = %u byte, sleepTime = %lu at(%lu ms)\r\n", len, data[0], millis());
     module->_go_sleep(data[0]);

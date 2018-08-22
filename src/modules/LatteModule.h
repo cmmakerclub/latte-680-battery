@@ -20,7 +20,6 @@ class LatteModule: public CMMC_Module {
   private:
     Adafruit_NeoPixel *pixels;
     SSD1306 *oled;
-
 };
 
 #endif
