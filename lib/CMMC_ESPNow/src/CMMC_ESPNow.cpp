@@ -1,4 +1,8 @@
+#define CMMC_USE_ALIAS
+
 #include "CMMC_ESPNow.h"
+
+extern uint8_t Send_complete;
 
 CMMC_ESPNow::CMMC_ESPNow() {
   static CMMC_ESPNow* that = this;
@@ -21,12 +25,15 @@ CMMC_ESPNow::CMMC_ESPNow() {
 
 void CMMC_ESPNow::init(int mode) {
   WiFi.disconnect();
+  delay(20);
   if (mode == NOW_MODE_SLAVE) {
     WiFi.mode(WIFI_STA);
   }
   else {
     WiFi.mode(WIFI_STA);
   }
+
+  delay(20); 
 
   if (esp_now_init() == 0) {
 		USER_DEBUG_PRINTF("espnow init ok");
@@ -39,7 +46,7 @@ void CMMC_ESPNow::init(int mode) {
   if (mode == NOW_MODE_CONTROLLER) {
     esp_now_set_self_role(ESP_NOW_ROLE_CONTROLLER);
   } else {
-    esp_now_set_self_role(ESP_NOW_ROLE_SLAVE);
+    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
   }
 
   esp_now_register_send_cb(this->_system_on_message_sent);
@@ -48,22 +55,26 @@ void CMMC_ESPNow::init(int mode) {
 
 
 void CMMC_ESPNow::send(uint8_t *mac, u8* data, int len, void_cb_t cb, uint32_t wait_time) {
+  if (mac[0] == 0x00 && mac[1] == 0x00) {
+    return;
+  }
   this->_message_sent_status = -1;
   this->_waiting_message_has_arrived = false;
-
-  uint32_t MAX_RETRIES   = 10;
-  uint32_t RETRIES_DELAY = 50;
-  int retries = 0;
+  uint16_t MAX_RETRIES   = 10;
+  uint16_t RETRIES_DELAY = 10;
+  uint16_t retries = 0;
 
   esp_now_send(mac, data, len);
-  delay(RETRIES_DELAY);
+  delay(RETRIES_DELAY*(retries+1));
 
   if (this->_enable_retries) {
     while(this->_message_sent_status != 0) {
-      USER_DEBUG_PRINTF("try to send over espnow...");
+      USER_DEBUG_PRINTF("try to send over espnow..."); 
       esp_now_send(mac, data, len);
-      delay(RETRIES_DELAY);
+      delay(RETRIES_DELAY*(retries+1));
+      Serial.printf("retrying %d/%d (at %lums)\r\n", retries, MAX_RETRIES, millis());
       if (++retries > MAX_RETRIES) {
+        Serial.printf("reach max retries.\r\n");
         break;
       }
     }
@@ -71,16 +82,21 @@ void CMMC_ESPNow::send(uint8_t *mac, u8* data, int len, void_cb_t cb, uint32_t w
 
   if (cb != NULL) {
     uint32_t timeout_at_ms = millis() + wait_time;
-    USER_DEBUG_PRINTF("timeout at %lu", timeout_at_ms);
-    USER_DEBUG_PRINTF("millis = %lu", millis());
-    while (millis() < timeout_at_ms) {
-      USER_DEBUG_PRINTF("Waiting a command message...");
-      delay(RETRIES_DELAY);
+    USER_DEBUG_PRINTF("timeout at %lu/%lu", millis(), timeout_at_ms);
+    while (millis() < timeout_at_ms && this->_waiting_message_has_arrived == false) {
+      yield();
     }
+
     if (this->_waiting_message_has_arrived==false) {
-      USER_DEBUG_PRINTF("Timeout... %d", _waiting_message_has_arrived);
+      USER_DEBUG_PRINTF("MESSAGE LOST!, Waiting a message Timeout...\r\n");
       cb();
     }
+    else {
+      USER_DEBUG_PRINTF("GOT a message from controller\r\n"); 
+    }
+  }
+  else {
+    Serial.println("cb is null");
   }
 }
 

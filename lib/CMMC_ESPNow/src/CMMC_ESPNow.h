@@ -18,8 +18,9 @@
     _user_debug_cb(this->debug_buffer); \
   }
 
-typedef void (*cmmc_debug_cb_t)(const char* message);
-typedef void (*void_cb_t)();
+typedef void (*cmmc_debug_cb_t)(const char* message); 
+typedef std::function<void(void)> void_cb_t; 
+
 
 class CMMC_ESPNow
 {
@@ -47,6 +48,8 @@ class CMMC_ESPNow
     bool _enable_retries = false;
     bool _waiting_message_has_arrived;
     char debug_buffer[60];
+    uint32_t sent_prev;
+    uint32_t sent_timeout;
 };
 
 #endif //CMMC_ESPNow_H
