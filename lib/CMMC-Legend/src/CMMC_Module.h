@@ -19,6 +19,7 @@ class CMMC_Module {
     virtual void setup() = 0;
     virtual void loop() = 0;
     virtual void configLoop();
+    virtual void configSetup();
     void configWebServer(); 
 };
 

@@ -5,6 +5,7 @@ void CMMC_Legend::addModule(CMMC_Module* module) {
   Serial.printf("addModule.. size = %d\r\n", _modules.size());
 }
 
+// being called by os
 void CMMC_Legend::run() {
   static CMMC_Legend *that = this;
   int size = _modules.size();
@@ -15,23 +16,34 @@ void CMMC_Legend::run() {
   yield();
 }
 
+bool CMMC_Legend::setEnable(bool status) {
+  if (status) {
+    File f = SPIFFS.open("/enabled", "a+"); 
+    return f;
+  }
+  else {
+      return SPIFFS.remove("/enabled"); 
+  }
+}
+
 void CMMC_Legend::isLongPressed() {
   uint32_t prev = millis();
-  while (digitalRead(13) == LOW) {
+  while (digitalRead(15) == HIGH) {
     delay(50);
     if ( (millis() - prev) > 5L * 1000L) {
       Serial.println("LONG PRESSED.");
       blinker->blink(50);
-      while (digitalRead(13) == LOW) {
+      while (digitalRead(15) == HIGH) {
         delay(10);
       }
-      SPIFFS.remove("/enabled");
+      setEnable(false);
       Serial.println("being restarted.");
       delay(1000);
       ESP.restart();
     }
   }
 }
+
 void CMMC_Legend::setup() {
   CMMC_System::setup();
 }
@@ -39,10 +51,10 @@ void CMMC_Legend::setup() {
 void CMMC_Legend::init_gpio() {
   Serial.begin(57600);
   Serial.println("OS::Init GPIO..");
-  pinMode(13, INPUT_PULLUP);
+  pinMode(15, INPUT);
   blinker = new CMMC_LED;
   blinker->init();
-  blinker->setPin(2);
+  blinker->setPin(16);
   Serial.println();
   blinker->blink(500);
   delay(10);
@@ -53,11 +65,11 @@ void CMMC_Legend::init_fs() {
   SPIFFS.begin();
   Dir dir = SPIFFS.openDir("/");
   isLongPressed();
-  // Serial.println("--------------------------");
-  // while (dir.next()) {
-  //   File f = dir.openFile("r");
-  //   Serial.printf("> %s \r\n", dir.fileName().c_str());
-  // }
+  Serial.println("--------------------------");
+  while (dir.next()) {
+    File f = dir.openFile("r");
+    Serial.printf("> %s \r\n", dir.fileName().c_str());
+  }
   /*******************************************
      Boot Mode Selection
    *******************************************/
@@ -83,21 +95,43 @@ void CMMC_Legend::init_user_config() {
 
 void CMMC_Legend::init_network() {
   Serial.println("Initializing network.");
+
   for (int i = 0 ; i < _modules.size(); i++) {
+    Serial.println("call module.config()"); 
     _modules[i]->config(this, &server);
   }
-  if (mode == SETUP) {
-    _init_ap();
-    setupWebServer(&server, &ws, &events);
-    blinker->blink(50);
-    while (1) {
-      for (int i = 0 ; i < _modules.size(); i++) {
-        _modules[i]->configLoop();
-      }
-      yield();
+
+  if (mode == SETUP) { 
+    Serial.println("calling confgSetup");
+    for (int i = 0 ; i < _modules.size(); i++) {
+      _modules[i]->configSetup();
     }
+
+    _init_ap(); 
+
+    setupWebServer(&server, &ws, &events);
+
+    blinker->blink(50);
+    uint32_t startConfigLoopAtMs = millis();
+    while (1 && !stopFlag) {
+      for (int i = 0 ; i < _modules.size(); i++) { 
+        _modules[i]->configLoop();
+        yield();
+      } 
+      if ( (millis() - startConfigLoopAtMs) > 10L*60*1000) {
+          setEnable(true);
+          delay(100);
+          ESP.restart();
+      } 
+    }
+    SPIFFS.begin();
+    File f = SPIFFS.open("/enabled", "a+");
+    Serial.println("stopAll");
+    delay(200);;
+    ESP.restart();
   }
   else if (mode == RUN) {
+    system_update_cpu_freq(80);
     blinker->blink(4000);
     for (int i = 0 ; i < _modules.size(); i++) {
       _modules[i]->setup();
@@ -112,9 +146,9 @@ CMMC_LED *CMMC_Legend::getBlinker() {
 void CMMC_Legend::_init_ap() {
   WiFi.disconnect();
   WiFi.softAPdisconnect();
-  delay(10);
-  WiFi.mode(WIFI_AP);
-  delay(10);
+  delay(100);
+  WiFi.mode(WIFI_AP_STA);
+  delay(100);
   IPAddress Ip(192, 168, 4, 1);
   IPAddress NMask(255, 255, 255, 0);
   WiFi.softAPConfig(Ip, Ip, NMask);
@@ -125,9 +159,12 @@ void CMMC_Legend::_init_ap() {
   Serial.println();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
+  delay(100);
 }
 void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, AsyncEventSource *events) {
   // ws->onEvent(this->onWsEvent);
+  static CMMC_Legend *that;
+  that = this;
   server->addHandler(ws);
   server->serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
   events->onConnect([](AsyncEventSourceClient * client) {
@@ -152,7 +189,8 @@ void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, Asy
       Serial.println("file open failed");
     }
     request->send(200, "text/plain", String("ENABLING.. ") + String(ESP.getFreeHeap()));
-    // ESP.restart();
+    delay(1000);
+    ESP.restart();
   });
 
   static const char* fsServerIndex = "<form method='POST' action='/do-fs' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
@@ -174,11 +212,16 @@ void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, Asy
   server->on("/do-fs", HTTP_POST, [](AsyncWebServerRequest * request) {
     // the request handler is triggered after the upload has finished...
     // create the response, add header, and send response
-    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    bool updateHasError = Update.hasError();
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", (updateHasError) ? "FAIL" : "OK");
     response->addHeader("Connection", "close");
     response->addHeader("Access-Control-Allow-Origin", "*");
     // restartRequired = true;  // Tell the main loop to restart the ESP
     request->send(response);
+    if (!updateHasError) {
+      // delay(1000);
+      // ESP.restart();
+    }
   }, [](AsyncWebServerRequest * request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
     //Upload handler chunks in data
     if (!index) { // if index == 0 then this is the first frame of data
@@ -212,26 +255,70 @@ void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, Asy
     }
   });
 
+  server->on("/update", HTTP_POST, [&](AsyncWebServerRequest *request){
+    // the request handler is triggered after the upload has finished... 
+    // create the response, add header, and send response
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", (Update.hasError())?"FAIL":"OK");
+    response->addHeader("Connection", "close");
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    request->send(response);
+  },[&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    //Upload handler chunks in data 
+    if(!index){ // if index == 0 then this is the first frame of data
+      Serial.printf("UploadStart: %s\n", filename.c_str());
+      Serial.setDebugOutput(true);
+      
+      // calculate sketch space required for the update
+      uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+      if(!Update.begin(maxSketchSpace)){//start with max available size
+        Update.printError(Serial);
+      }
+      Update.runAsync(true); // tell the updaterClass to run in async mode
+    }
+
+    //Write chunked data to the free sketch space
+    if(Update.write(data, len) != len){
+        Update.printError(Serial);
+    }
+    
+    if(final){ // if the final flag is set then this is the last frame of data
+      if(Update.end(true)){ //true to set the size to the current progress
+          Serial.printf("Update Success: %u B\nRebooting...\n", index+len);
+          that->stopFlag = true;
+          stopFlag = true;
+        } else {
+          Update.printError(Serial);
+        }
+        Serial.setDebugOutput(false);
+    }
+  });
+
+
   server->on("/do-firmware", HTTP_POST, [](AsyncWebServerRequest * request) {
     // the request handler is triggered after the upload has finished...
     // create the response, add header, and send response
-    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    bool updateHasError = Update.hasError();
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", (updateHasError) ? "FAIL" : "OK");
     response->addHeader("Connection", "close");
     response->addHeader("Access-Control-Allow-Origin", "*");
     // restartRequired = true;  // Tell the main loop to restart the ESP
     request->send(response);
-  }, [](AsyncWebServerRequest * request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+    if (!updateHasError) {
+      // delay(1000);
+      // ESP.restart();
+    }
+  }, [&](AsyncWebServerRequest * request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
     //Upload handler chunks in data
     if (!index) { // if index == 0 then this is the first frame of data
-      blinker->detach();
       SPIFFS.end();
+      blinker->detach();
       Serial.println("upload start...");
       Serial.printf("UploadStart: %s\n", filename.c_str());
       Serial.setDebugOutput(true);
       // calculate sketch space required for the update
       uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
       bool updateOK = maxSketchSpace < ESP.getFreeSketchSpace();
-      if (!Update.begin(maxSketchSpace)) { //start with max available size
+      if (!Update.begin(maxSketchSpace, U_FLASH)) { //start with max available size
         Update.printError(Serial);
       }
       Update.runAsync(true); // tell the updaterClass to run in async mode
@@ -245,6 +332,8 @@ void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, Asy
     if (final) { // if the final flag is set then this is the last frame of data
       if (Update.end(true)) { //true to set the size to the current progress
         Serial.printf("Update Success: %u B\nRebooting...\n", index + len);
+          that->stopFlag = true;
+          stopFlag = true;
         blinker->blink(1000);
       } else {
         Update.printError(Serial);
@@ -299,7 +388,6 @@ void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, Asy
 
     request->send(404);
   });
-
 
   server->begin();
   Serial.println("Starting webserver->..");

@@ -33,6 +33,7 @@ class CMMC_Legend: public CMMC_System {
     void run(); 
     void isLongPressed();
     void setup(); 
+
     CMMC_LED *getBlinker();
   protected: 
     void init_gpio(); 
@@ -40,6 +41,7 @@ class CMMC_Legend: public CMMC_System {
     void init_user_sensor(); 
     void init_user_config(); 
     void init_network(); 
+    bool setEnable(bool status);
 
   private:
     MODE mode;
@@ -47,6 +49,7 @@ class CMMC_Legend: public CMMC_System {
     char ap_ssid[30] = "CMMC-Legend";
     void _init_ap(); 
     void setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, AsyncEventSource *events); 
+    bool stopFlag = false;
 };
 
 #endif
