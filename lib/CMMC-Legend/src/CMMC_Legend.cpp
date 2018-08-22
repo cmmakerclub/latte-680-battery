@@ -30,11 +30,11 @@ bool CMMC_Legend::setEnable(bool status) {
 
 void CMMC_Legend::isLongPressed() {
   uint32_t prev = millis();
-  while (digitalRead(PIN_BUTTON) == HIGH) {
+  while (digitalRead(PIN_BUTTON) == LOW) {
     delay(50);
     if ( (millis() - prev) > 5L * 1000L) {
       blinker->blink(50);
-      while (digitalRead(PIN_BUTTON) == HIGH) {
+      while (digitalRead(PIN_BUTTON) == LOW) {
         delay(10);
       }
       setEnable(false);
@@ -49,9 +49,8 @@ void CMMC_Legend::setup() {
 }
 
 void CMMC_Legend::init_gpio() {
-  Serial.begin(BAUD_RATE);
-  pinMode(PIN_BUTTON, INPUT);
-  
+  Serial.begin(BAUD_RATE); 
+  pinMode(PIN_BUTTON, INPUT_PULLUP); 
   blinker = new CMMC_LED;
   blinker->init();
   blinker->setPin(PIN_BLINKER);
@@ -117,11 +116,17 @@ void CMMC_Legend::init_network() {
         _modules[i]->configLoop();
         yield();
       } 
-      if ( (millis() - startConfigLoopAtMs) > 10L*60*1000) {
+
+      int waitTime = 10L; /*in minutes */
+      if ( (millis() - startConfigLoopAtMs) > waitTime*60*1000) {
           setEnable(true);
           delay(100);
           ESP.restart();
       } 
+
+      while (digitalRead(PIN_BUTTON) == LOW) {
+
+      }
     }
 
     SPIFFS.begin();

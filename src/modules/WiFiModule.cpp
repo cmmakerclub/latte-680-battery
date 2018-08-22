@@ -4,13 +4,14 @@
 #define PIN_BUTTON (13)
 
 void WiFiModule::isLongPressed() {
-  if (digitalRead(PIN_BUTTON) == HIGH) {
-    while(digitalRead(PIN_BUTTON) == HIGH) {
+  if (digitalRead(PIN_BUTTON) == LOW) {
+    while(digitalRead(PIN_BUTTON) == LOW) {
       delay(10); 
     } 
+
     SPIFFS.remove("/enabled");
     digitalWrite(0, HIGH);
-    delay(1000);
+    delay(100); 
     ESP.restart();
   } 
 }
