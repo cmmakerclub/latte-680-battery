@@ -1,11 +1,11 @@
 #include "WiFiModule.h"
 
 #define WIFI_CONFIG_FILE "/wifi.json"
+#define PIN_BUTTON (13)
 
 void WiFiModule::isLongPressed() {
-  if (digitalRead(15) == HIGH) {
-    Serial.println("15 PRESSED.");
-    while(digitalRead(15) == HIGH) {
+  if (digitalRead(PIN_BUTTON) == HIGH) {
+    while(digitalRead(PIN_BUTTON) == HIGH) {
       delay(10); 
     } 
     SPIFFS.remove("/enabled");
