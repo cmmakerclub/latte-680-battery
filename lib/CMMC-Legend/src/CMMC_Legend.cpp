@@ -1,5 +1,9 @@
 #include "CMMC_Legend.h"
 
+#define PIN_BUTTON  (13)
+#define PIN_BLINKER (16)
+#define BAUD_RATE  (57600)
+
 void CMMC_Legend::addModule(CMMC_Module* module) {
   _modules.push_back(module);
   Serial.printf("addModule.. size = %d\r\n", _modules.size());
@@ -28,17 +32,15 @@ bool CMMC_Legend::setEnable(bool status) {
 
 void CMMC_Legend::isLongPressed() {
   uint32_t prev = millis();
-  while (digitalRead(15) == HIGH) {
+  while (digitalRead(PIN_BUTTON) == HIGH) {
     delay(50);
     if ( (millis() - prev) > 5L * 1000L) {
-      Serial.println("LONG PRESSED.");
       blinker->blink(50);
-      while (digitalRead(15) == HIGH) {
+      while (digitalRead(PIN_BUTTON) == HIGH) {
         delay(10);
       }
       setEnable(false);
-      Serial.println("being restarted.");
-      delay(1000);
+      delay(100);
       ESP.restart();
     }
   }
@@ -49,13 +51,13 @@ void CMMC_Legend::setup() {
 }
 
 void CMMC_Legend::init_gpio() {
-  Serial.begin(57600);
-  Serial.println("OS::Init GPIO..");
-  pinMode(15, INPUT);
+  Serial.begin(BAUD_RATE);
+  pinMode(PIN_BUTTON, INPUT);
+  
   blinker = new CMMC_LED;
   blinker->init();
-  blinker->setPin(16);
-  Serial.println();
+  blinker->setPin(PIN_BLINKER);
+
   blinker->blink(500);
   delay(10);
 }
@@ -124,9 +126,9 @@ void CMMC_Legend::init_network() {
           ESP.restart();
       } 
     }
+
     SPIFFS.begin();
     File f = SPIFFS.open("/enabled", "a+");
-    Serial.println("stopAll");
     delay(200);;
     ESP.restart();
   }
@@ -385,7 +387,6 @@ void CMMC_Legend::setupWebServer(AsyncWebServer *server, AsyncWebSocket *ws, Asy
         Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
       }
     }
-
     request->send(404);
   });
 
