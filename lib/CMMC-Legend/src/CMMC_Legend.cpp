@@ -6,7 +6,6 @@
 
 void CMMC_Legend::addModule(CMMC_Module* module) {
   _modules.push_back(module);
-  Serial.printf("addModule.. size = %d\r\n", _modules.size());
 }
 
 // being called by os
@@ -15,9 +14,8 @@ void CMMC_Legend::run() {
   int size = _modules.size();
   for (int i = 0 ; i < size; i++) {
     _modules[i]->loop();
-  }
+  } 
   isLongPressed();
-  yield();
 }
 
 bool CMMC_Legend::setEnable(bool status) {
@@ -63,15 +61,14 @@ void CMMC_Legend::init_gpio() {
 }
 
 void CMMC_Legend::init_fs() {
-  // Serial.println("OS::Init FS..");
   SPIFFS.begin();
   Dir dir = SPIFFS.openDir("/");
   isLongPressed();
-  Serial.println("--------------------------");
-  while (dir.next()) {
-    File f = dir.openFile("r");
-    Serial.printf("> %s \r\n", dir.fileName().c_str());
-  }
+  // Serial.println("--------------------------");
+  // while (dir.next()) {
+  //   File f = dir.openFile("r");
+  //   Serial.printf("> %s \r\n", dir.fileName().c_str());
+  // }
   /*******************************************
      Boot Mode Selection
    *******************************************/

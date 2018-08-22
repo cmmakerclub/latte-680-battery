@@ -200,10 +200,11 @@ void MqttModule::register_receive_hooks(MqttConnector *mqtt) {
 
 void MqttModule::register_publish_hooks(MqttConnector* mqtt) {
   mqtt->on_prepare_data_once([&](void) {
-    Serial.println("initializing sensor...");
+
   });
 
   mqtt->on_before_prepare_data([&](void) {
+
   });
 
   mqtt->on_prepare_data([&](JsonObject * root) {
@@ -214,10 +215,8 @@ void MqttModule::register_publish_hooks(MqttConnector* mqtt) {
     data["millis"] = millis();
     data["temperature_c"] = bme->getTemperature();
     data["humidity_percent_rh"] = bme->getHumidity();
-    data["updateInterval"] = PUBLISH_EVERY;
+    data["updat_interval_s"] = PUBLISH_EVERY;
     Serial.println("PUBLISHING...!");
-    // Serial.printf("temp = %d\r\n", temp);
-
   }, PUBLISH_EVERY);
 
   mqtt->on_after_prepare_data([&](JsonObject * root) {
