@@ -3,7 +3,6 @@
 
 CMMC_ConfigManager::CMMC_ConfigManager(const char* filename) { 
   strcpy(this->filename_c, filename); 
-  this->_user_debug_cb = [](const char* s) { };
 }
 
 CMMC_ConfigManager::~CMMC_ConfigManager() {
@@ -118,12 +117,6 @@ File CMMC_ConfigManager::_init_json_file() {
   JsonObject& json = this->jsonBuffer.createObject();
   json.printTo(configFile);
   this->configFile.close();
-}
-
-void CMMC_ConfigManager::add_debug_listener(cmmc_debug_cb_t cb) {
-  if (cb != NULL) {
-    this->_user_debug_cb = cb;
-  }
 }
 
 void CMMC_ConfigManager::dump_json_object(cmmc_dump_cb_t printer) {

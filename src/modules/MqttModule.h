@@ -30,6 +30,8 @@ class MqttModule: public CMMC_Module {
     int PUBLISH_EVERY;
     int MQTT_CONNECT_TIMEOUT; 
     bool MQTT_LWT;
+
+    bool _flag_go_sleep = false;;
 };
 
 #endif

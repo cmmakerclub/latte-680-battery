@@ -1,7 +1,7 @@
 #include "CMMC_Legend.h"
 
 #define PIN_BUTTON  (13)
-#define PIN_BLINKER (16)
+#define PIN_BLINKER (2)
 #define BAUD_RATE  (57600)
 
 void CMMC_Legend::addModule(CMMC_Module* module) {
@@ -50,11 +50,11 @@ void CMMC_Legend::setup() {
 
 void CMMC_Legend::init_gpio() {
   Serial.begin(BAUD_RATE); 
+
   pinMode(PIN_BUTTON, INPUT_PULLUP); 
   blinker = new CMMC_LED;
   blinker->init();
-  blinker->setPin(PIN_BLINKER);
-
+  blinker->setPin(PIN_BLINKER); 
   blinker->blink(500);
   delay(10);
 }
@@ -95,23 +95,21 @@ void CMMC_Legend::init_network() {
   Serial.println("Initializing network.");
 
   for (int i = 0 ; i < _modules.size(); i++) {
-    Serial.println("call module.config()"); 
     _modules[i]->config(this, &server);
   }
 
   if (mode == SETUP) { 
-    Serial.println("calling confgSetup");
     for (int i = 0 ; i < _modules.size(); i++) {
       _modules[i]->configSetup();
     }
 
     _init_ap(); 
-
-    setupWebServer(&server, &ws, &events);
-
+    setupWebServer(&server, &ws, &events); 
     blinker->blink(50);
+
     uint32_t startConfigLoopAtMs = millis();
-    while (1 && !stopFlag) {
+
+    while (1 && !stopFlag) { 
       for (int i = 0 ; i < _modules.size(); i++) { 
         _modules[i]->configLoop();
         yield();
@@ -125,11 +123,16 @@ void CMMC_Legend::init_network() {
       } 
 
       while (digitalRead(PIN_BUTTON) == LOW) {
-
+        setEnable(true); 
+        digitalWrite(0, HIGH);
+        blinker->blink(200);
+        delay(100);
+        ESP.restart();
       }
     }
 
-    SPIFFS.begin();
+
+    SPIFFS.begin(); // re-initializing;
     File f = SPIFFS.open("/enabled", "a+");
     delay(200);;
     ESP.restart();

@@ -18,6 +18,7 @@ class WiFiModule: public CMMC_Module {
     char sta_pwd[30] = "";
     char ap_pwd[30] = ""; 
     void _init_sta(); 
+
 };
 
 #endif

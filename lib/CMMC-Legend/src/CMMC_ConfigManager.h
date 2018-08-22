@@ -49,7 +49,6 @@ class CMMC_ConfigManager
     File _init_json_file();
     Items items;
     DynamicJsonBuffer jsonBuffer;
-    cmmc_debug_cb_t _user_debug_cb;
     File configFile;
     char _k[40] = {0};
     char _v[60] = {0};

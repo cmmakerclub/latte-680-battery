@@ -85,6 +85,10 @@ void MqttModule::setup() {
 
 void MqttModule::loop() {
   mqtt->loop();
+  if (_flag_go_sleep) {
+    delay(1000);
+    ESP.deepSleep(10e6); 
+  }
 };
 
 // MQTT INITIALIZER
@@ -157,7 +161,7 @@ void MqttModule::register_receive_hooks(MqttConnector *mqtt) {
     sub->add_topic(MQTT_PREFIX + MQTT_CLIENT_ID + String("/$/+"));
     sub->add_topic(MQTT_PREFIX + DEVICE_NAME + String("/status"));
     Serial.println("done on_subscribe...");
-    Serial.printf("publish every %lu s\r\n", PUBLISH_EVERY);
+    Serial.printf("publish every %lus\r\n", PUBLISH_EVERY/1000L);
   });
 
   mqtt->on_before_message_arrived_once([&](void) { });
@@ -199,12 +203,9 @@ void MqttModule::register_receive_hooks(MqttConnector *mqtt) {
 }
 
 void MqttModule::register_publish_hooks(MqttConnector* mqtt) {
-  mqtt->on_prepare_data_once([&](void) {
+  mqtt->on_prepare_data_once([&](void) { });
 
-  });
-
-  mqtt->on_before_prepare_data([&](void) {
-
+  mqtt->on_before_prepare_data([&](void) { 
   });
 
   mqtt->on_prepare_data([&](JsonObject * root) {
@@ -213,10 +214,30 @@ void MqttModule::register_publish_hooks(MqttConnector* mqtt) {
     // data["appVersion"] = LEGEND_APP_VERSION;
     data["myName"] = DEVICE_NAME;
     data["millis"] = millis();
+
     data["temperature_c"] = bme->getTemperature();
     data["humidity_percent_rh"] = bme->getHumidity();
-    data["updat_interval_s"] = PUBLISH_EVERY;
+
+    int c = 0;
+    int analogValue = 0;
+    while (c++ < 5) {
+      analogValue += analogRead(A0);
+      Serial.printf("analog = %d\n", analogRead(A0)); 
+      delay(10);
+    }
+
+    float batteryRaw = analogValue/(c-1);
+    float batteryVolt = batteryRaw * 4.7 / 931.84;
+
+    Serial.printf("final analog = %f\n", batteryRaw); 
+    Serial.printf("final analog = %fV\n", batteryVolt); 
+
+    data["update_interval_s"] = PUBLISH_EVERY;
+    data["battery_raw"] = batteryRaw;
+    data["battery_volt"] = batteryVolt;
+
     Serial.println("PUBLISHING...!");
+    this->_flag_go_sleep = true;
   }, PUBLISH_EVERY);
 
   mqtt->on_after_prepare_data([&](JsonObject * root) {
