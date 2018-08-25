@@ -99,15 +99,12 @@ void ESPNowModule::loop() {
     memcpy(&packet.to, master_mac, 6); 
     memcpy(&packet.from, self_mac, 6); 
     packet.type = 1;
-    packet.battery = 2;
     packet.field1 = bme->getTemperature()*100;
     packet.field2 = bme->getHumidity()*100;
-    // Serial.printf("field1 = %lu \r\n", packet.field1);
-    // Serial.printf("field2 = %lu \r\n", packet.field2);
     packet.ms = millis();
     strcpy(packet.sensorName, _sensorName);
     packet.nameLen = strlen(packet.sensorName); 
-    packet.battery = analogRead(A0) * 5 / 991.232;
+    packet.battery = (analogRead(A0) * 5 / 991.232)*100;
     packet.sum = checksum((uint8_t*) &packet, sizeof(packet) - sizeof(packet.sum)); 
     dump((u8*) &packet, sizeof(packet)); 
 
@@ -171,6 +168,7 @@ void ESPNowModule::_init_espnow() {
     led->toggle();
     Serial.printf("RECV: len = %u byte, sleepTime = %lu at(%lu ms)\r\n", len, data[0], millis());
     // TODO: GO FOR SLEEP
+    ESP.deepSleep(10e6);
     // module->_go_sleep(data[0]);
   });
 }
