@@ -111,7 +111,7 @@ void ESPNowModule::loop() {
     espNow.send(master_mac, (u8*) &packet, sizeof(packet), [&]() {
       Serial.printf("espnow sending timeout. sleepTimeM = %lu\r\n", _defaultDeepSleep_m); 
       // _go_sleep(_defaultDeepSleep_m);
-    }, 2000); 
+    }, 5000); 
 
     Serial.println("SENDING...."); 
   });
@@ -168,8 +168,8 @@ void ESPNowModule::_init_espnow() {
     led->toggle();
     Serial.printf("RECV: len = %u byte, sleepTime = %lu at(%lu ms)\r\n", len, data[0], millis());
     // TODO: GO FOR SLEEP
-    ESP.deepSleep(10e6);
-    // module->_go_sleep(data[0]);
+    // ESP.deepSleep(10e6);
+    module->_go_sleep(data[0]);
   });
 }
 
