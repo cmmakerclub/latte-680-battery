@@ -112,7 +112,7 @@ class CMMC_BME680
 
     void read()
     { 
-      this->readSensorInterval.every_ms(1000, [&]() {
+      this->readSensorInterval.every_ms(100, [&]() {
           if (!isBmeError && iaqSensor.run())
           { // If new data is available
             Serial.printf("temp=%f, rawTemp=%f, humidity=%f, raw_humididy=%f, iaq=%f, iaqAcc=%u\r\n",

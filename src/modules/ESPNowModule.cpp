@@ -1,4 +1,6 @@
 #include "ESPNowModule.h"
+#include "modules/LatteModule.h"
+extern LatteModule *latteModule;
 
 void printMacAddress(uint8_t* macaddr, uint8_t newline = 0) {
   Serial.print("{");
@@ -95,12 +97,15 @@ void ESPNowModule::config(CMMC_System *os, AsyncWebServer* server) {
 }
 
 void ESPNowModule::loop() {
-  sendingInterval.every_ms(5*1000, [&]() { 
+  sendingInterval.every_ms(1*1000, [&]() { 
     memcpy(&packet.to, master_mac, 6); 
     memcpy(&packet.from, self_mac, 6); 
     packet.type = 1;
+
     packet.field1 = bme->getTemperature()*100;
     packet.field2 = bme->getHumidity()*100;
+    packet.field3 = latteModule->getDistanceMillimeters() ;
+
     packet.ms = millis();
     strcpy(packet.sensorName, _sensorName);
     packet.nameLen = strlen(packet.sensorName); 
@@ -111,7 +116,7 @@ void ESPNowModule::loop() {
     espNow.send(master_mac, (u8*) &packet, sizeof(packet), [&]() {
       Serial.printf("espnow sending timeout. sleepTimeM = %lu\r\n", _defaultDeepSleep_m); 
       // _go_sleep(_defaultDeepSleep_m);
-    }, 5000); 
+    }, 1000); 
 
     Serial.println("SENDING...."); 
   });

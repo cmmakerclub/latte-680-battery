@@ -8,13 +8,16 @@
 
 CMMC_Legend os;
 CMMC_BME680 *bme;
+LatteModule* latteModule;
 
 void setup()
-{
-  os.addModule(new LatteModule());
-  // os.addModule(new WiFiModule());
+{ 
+  latteModule = new LatteModule();
+  os.addModule(latteModule); 
+  
   os.addModule(new ESPNowModule());
   os.setup();
+
   Serial.printf("APP VERSION: %s\r\n", LEGEND_APP_VERSION);
 }
 

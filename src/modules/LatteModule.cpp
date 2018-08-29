@@ -20,8 +20,16 @@ void LatteModule::configLoop() {
 
 void LatteModule::setup() {
   bme = new CMMC_BME680(); 
+  vl53l0x = new VL53L0X;
   bme->setup();
   bme->read();
+
+  vl53l0x->init();
+  vl53l0x->setTimeout(500);
+  vl53l0x->setSignalRateLimit(0.1);
+
+  vl53l0x->setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
+  vl53l0x->setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
 
   oled  = new SSD1306(0x3c, 4, 5);
   pixels  = new Adafruit_NeoPixel(NUMPIXELS, 15, NEO_GRB + NEO_KHZ800); 
@@ -34,6 +42,12 @@ void LatteModule::setup() {
   oled->setFont(ArialMT_Plain_10); 
   oled->println("starting...");
   oled->display();
+}
+
+uint16_t LatteModule::getDistanceMillimeters() {
+  uint16_t distanceMillimeters = vl53l0x->readRangeSingleMillimeters();
+  Serial.println(distanceMillimeters);
+  return distanceMillimeters;
 }
 
 void LatteModule::loop() { 
